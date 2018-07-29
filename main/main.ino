@@ -1,10 +1,10 @@
 /****************************************************************************
- * @Project: DUMP ESP8266 NFC Office implementation
- * @File name: main.ino
- * @Brief:
- * @Note
- * @Author: Ivan Pavao Lozancic
- * @Date: 07-28-2018
+ *  @project:     DUMP ESP8266 NFC Office implementation
+ *  @file_name:   main.ino
+ *  @brief:
+ *  @note:
+ *  @author:      Ivan Pavao Lozancic @dump
+ *  @date:        07-28-2018
  ****************************************************************************/
  
 #include <ESP8266WiFi.h>
@@ -16,50 +16,118 @@
 #include <PN532_SPI.h>
 #include <PN532.h>
 
+#include<string.h>
+
 #define ssid      "dump"        // WiFi SSID
 #define password  "Dump.12345"  // WiFi password
 
-ESP8266WebServer server ( 80 );
-WiFiClient client;
+/****************************************************************************
+ *                            Public functions
+ ***************************************************************************/
 
-PN532_SPI pn532spi(SPI, D2);
-PN532 nfc(pn532spi); //Set SPI communication with PN532 board
-
-void setup() {
-  
-  delay(300); // Init delay
-  
-  Serial.begin ( 115200 );
-  WiFi.begin ( ssid, password ); //Connect to wifi
-  
-  #ifdef TEST_MODE
-  while ( WiFi.status() != WL_CONNECTED ) { // Wifi connecting
-    delay ( 500 ); Serial.print ( "." );
-  }
-  
-  Serial.println ( "" );
-  Serial.print ( "Connected to " ); Serial.println ( ssid );
-  Serial.print ( "IP address: " ); Serial.println ( WiFi.localIP() );
-  
+/****************************************************************************
+ *  @name:        SPIFFS_check
+ *  *************************************************************************
+ *  @brief:       Check if SPIFFS memory mount is succesfull
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      [true]:  SPIFFS mount was succesfull
+ *                [flase]: SPIFFS mount failed 
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        30-07-2018
+ ***************************************************************************/
+bool SPIFFS_check(){
   if (!SPIFFS.begin())
   {
     Serial.println("SPIFFS Mount failed");
+    return true;
   } 
   else {
     Serial.println("SPIFFS Mount succesfull");
+    return false;
   }
-  #endif //TEST_MODE
+}
+
+/****************************************************************************
+ *  @name:        startESPServer
+ *  *************************************************************************
+ *  @brief:       Configure and start ESP8266 as web server
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      nothing
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        30-07-2018
+ ***************************************************************************/
+void startESPServer(){
   
-  //Load index.html and listen to HTTP POST request
-  server.serveStatic("/", SPIFFS, "/index.html");
+  ESP8266WebServer server ( 80 );
 
-  // Start server
-  server.begin();
+  WiFiClient client;
+
+  server.serveStatic("/", SPIFFS, "/index.html");
+}
+
+/****************************************************************************
+ *  @name:        WifiConnect
+ *  *************************************************************************
+ *  @brief:       Connect ESP8266 to WiFi network
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      [true]:  WiFi connection is established
+ *                [flase]: no connection
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        30-07-2018
+ ***************************************************************************/
+void WifiConnect(String ssid, String pass){
+
+  uint8_t connectTimeOverflow = 0;
+
+  WiFi.begin ( ssid, password ); //Connect to wifi
+
+  //Check if device is connected
+  while ( WiFi.status() != WL_CONNECTED  && connectTimeOverflow < 20) {
+    delay ( 500 );
+
+    #ifdef TEST_MODE
+    Serial.print ( "." );
+    #endif
+
+    connectTimeOverflow++;
+  }
+
   #ifdef TEST_MODE
-  Serial.println ( "HTTP server started" );
-  Serial.println ( "String START: " + EEPROM.read(0) );
+  Serial.println ( "" );
+  Serial.print ( "Connected to " ); Serial.println ( ssid );
+  Serial.print ( "IP address: " ); Serial.println ( WiFi.localIP() );
   #endif //TEST_MODE
 
+  return true;
+}
+
+/****************************************************************************
+ *  @name:        PN532_connect
+ *  *************************************************************************
+ *  @brief:       Connect ESP8266 to PN532 board
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      nothing
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        30-07-2018
+ ***************************************************************************/
+void PN532_connect(){
+  
   nfc.begin();
 
   uint32_t versiondata = nfc.getFirmwareVersion();
@@ -93,12 +161,25 @@ void setup() {
   Serial.println("Waiting for an ISO14443A card");
   Serial.println("\n-----------\n");
   #endif //TEST_MODE
-
 }
-void loop() {
-  
-  server.handleClient();
+
+/****************************************************************************
+ *  @name:        readCard
+ *  *************************************************************************
+ *  @brief:       Reads ISO14443A card and returns UID
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      [pointer] array of UID values
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        30-07-2018
+ ***************************************************************************/
+uint8_t * readCard(){
+
   boolean success;
+
   uint8_t uidLength;   // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
   uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
 
@@ -126,5 +207,64 @@ void loop() {
    while (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength)) yield(); //let ESPcore handle wifi stuff
 }
 
+/****************************************************************************
+ *  @name:        matchUser
+ *  *************************************************************************
+ *  @brief:       Match read card with saved cards
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      [true] If card is match
+ *                [false] If card is not match
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        30-07-2018
+ ***************************************************************************/
+bool matchUser(){
+
+}
+
+/****************************************************************************
+ *  @name:        Unlock_PCUser
+ *  *************************************************************************
+ *  @brief:       Unlock PC user
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      nothing
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        30-07-2018
+ ***************************************************************************/
+void Unlock_PCUser(){
+
+}
+
+/****************************************************************************
+ *                            Setup function
+ ***************************************************************************/
+void setup() {
+  
+  Serial.begin ( 115200 );  //Begin serial communication
+
+  WifiConnect(ssid, password);  //Connect to WIFI
+  startESPServer();        //Start server
+  PN532_connect();              //Connect to PN532 board
+
+}
+
+/****************************************************************************
+ *                            Main function
+ ***************************************************************************/
+void loop() {
+  server.handleClient();
+  readCrad();
+}
+
+/****************************************************************************
+ *                            End of the file
+ ***************************************************************************/
 
 
