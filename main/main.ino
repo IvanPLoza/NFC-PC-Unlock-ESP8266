@@ -16,24 +16,55 @@
 #include <PN532_SPI.h>
 #include <PN532.h>
 
+//#include <PS2Keyboard.h>
+
 #include<string.h>
 
 /****************************************************************************
  *                            Public definitions
  ***************************************************************************/
+//GPIO PINS 
+#define D0  0x10
+#define D1  0x05
+#define D2  0x04
+#define D3  0x00
+#define D4  0x02
+#define D5  0x0E
+#define D6  0x0C
+#define D7  0x0D
+#define D8  0x0F
+#define D9  0x03
+#define D10 0x01
+
+//Test mode define - comment if not needed
 #define TEST_MODE
 
-//WIFI_CONFIGURATION
-#define SSID_1      "Jonelo2"        // WiFi SSID
-#define PASSWORD_1  "172030ZN"  // WiFi password
+
+//Choose Wi-Fi
+#define DUMP 
+
+#ifdef DUMP
+#define SSID_1      "dump"
+#define PASSWORD_1  "Dump.12345"
+
+#endif //DUMP
+
 
 //PN532 SPI CONFIGURATION
+#ifdef PN53_CONNECTED
 PN532_SPI pn532spi(SPI, D2);
 PN532 nfc(pn532spi);
+#endif
+
 
 //ESP8266 CONFIGURATION
 ESP8266WebServer server ( 80 );
 WiFiClient client;
+
+//Configure PS2 port
+//#define PS2_DATA_PIN 4
+//PS2Keyboard keyboard;
+
 
 //USERS
 uint8_t usersUID[69][8] = {
@@ -202,7 +233,7 @@ void WifiConnect(char ssid[], char pass[]){
   WiFi.begin ( ssid, pass ); //Connect to wifi
 
   //Check if device is connected
-  while ( WiFi.status() != WL_CONNECTED  && connectTimeOverflow < 20) {
+  while ( WiFi.status() != WL_CONNECTED  && connectTimeOverflow < 50) {
     delay ( 500 );
 
     #ifdef TEST_MODE
@@ -233,6 +264,7 @@ void WifiConnect(char ssid[], char pass[]){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
+#ifdef PN53_CONNECTED
 void PN532_connect(){
   
   nfc.begin();
@@ -269,7 +301,7 @@ void PN532_connect(){
   Serial.println("\n-----------\n");
   #endif //TEST_MODE
 }
-
+#endif //PN53_CONNECTED
 /****************************************************************************
  *  @name:        readCard
  *  *************************************************************************
@@ -283,12 +315,13 @@ void PN532_connect(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
+#ifdef PN53_CONNECTED
 uint8_t * readCard(){
 
   boolean success;
 
   uint8_t uidLength;   // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-  uint8_t uid[7] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+  uint8_t uid[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
 
   // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
   // 'uid' will be populated with the UID, and uidLength will indicate
@@ -304,6 +337,7 @@ uint8_t * readCard(){
     Serial.println("Found a card!");
     Serial.print("UID Length: ");
     Serial.print(uidLength, DEC);
+    uid[7] = uidLength;
     Serial.println(" bytes");
     Serial.print("UID Value: ");
     for (uint8_t i=0; i < uidLength; i++)
@@ -318,10 +352,9 @@ uint8_t * readCard(){
     return uid;
   }
     // wait until the card is taken away
-   //while (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength)) //yield(); //let ESPcore handle wifi stuff
    return 0;
 }
-
+#endif //PN53_CONNECTED
 /****************************************************************************
  *  @name:        matchUser
  *  *************************************************************************
@@ -336,14 +369,13 @@ uint8_t * readCard(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
-bool matchUser(){
-
+bool matchUser(uint8_t readUID []){
 }
 
 /****************************************************************************
- *  @name:        Unlock_PCUser
+ *  @name:        signalTrinketBoard
  *  *************************************************************************
- *  @brief:       Unlock PC user
+ *  @brief:       Sends digital signal to trinket input pin
  *  @note:
  *  *************************************************************************
  *  @param[in]:
@@ -351,47 +383,53 @@ bool matchUser(){
  *  @return:      nothing
  *  *************************************************************************
  *  @author:      Ivan Pavao Lozancic
- *  @date:        30-07-2018
+ *  @date:        21-08-2018
  ***************************************************************************/
-void Unlock_PCUser(){
-
+void signalTrinketBoard(){
+  digitalWrite(D7, HIGH);
+  delay(200);
+  digitalWrite(D7, LOW);
 }
 
-/****************************************************************************
- *  @name:        Unlock_PCUser
- *  *************************************************************************
- *  @brief:       Unlock PC user
- *  @note:
- *  *************************************************************************
- *  @param[in]:
- *  @param[out]:   
- *  @return:      nothing
- *  *************************************************************************
- *  @author:      Ivan Pavao Lozancic
- *  @date:        30-07-2018
- ***************************************************************************/
-void Lock_PCUser(){
-
-}
 /****************************************************************************
  *                            Setup function
  ***************************************************************************/
 void setup() {
+
+  pinMode(D7, OUTPUT);    //Set signal pin
+  digitalWrite(D7, LOW);  //Important for Trinket Board keyboard
+
+  #ifdef TEST_MODE
+
+    //Begin serial communication
+    Serial.begin ( 115200 );
+
+  #endif
+
+  //Wifi
+  WifiConnect(SSID_1, PASSWORD_1);        //Connect to WIFI
+  startESPServer();                       //Start server
+
+  //Connect to PN532 board
+  #ifdef PN53_CONNECTED
+
+    PN532_connect();
+
+  #endif          
   
-  Serial.begin ( 115200 );      //Begin serial communication
-
-  WifiConnect(SSID_1, PASSWORD_1);  //Connect to WIFI
-  startESPServer();             //Start server
-  PN532_connect();              //Connect to PN532 board
-
 }
 
 /****************************************************************************
  *                            Main function
  ***************************************************************************/
 void loop() {
-  server.handleClient();
-  readCard();
+
+  #ifdef PN53_CONNECTED
+
+    matchUser(readCard());
+    
+  #endif
+
 }
 
 /****************************************************************************
