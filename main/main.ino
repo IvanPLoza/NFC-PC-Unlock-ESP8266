@@ -46,9 +46,10 @@
 #ifdef DUMP
 #define SSID_1      "dump"
 #define PASSWORD_1  "Dump.12345"
-
 #endif //DUMP
 
+//User UIDs definitions
+#define USERS_NUM 69
 
 //PN532 SPI CONFIGURATION
 #ifdef PN53_CONNECTED
@@ -355,6 +356,7 @@ uint8_t * readCard(){
    return 0;
 }
 #endif //PN53_CONNECTED
+
 /****************************************************************************
  *  @name:        matchUser
  *  *************************************************************************
@@ -370,6 +372,27 @@ uint8_t * readCard(){
  *  @date:        30-07-2018
  ***************************************************************************/
 bool matchUser(uint8_t readUID []){
+  
+  uint8_t COUNTER_USERS;
+  uint8_t COUNTER_UID;
+  uint8_t readUID_LENGTH = readUID[7];
+  uint8_t matchFactor = 0;
+  uint8_t matchFactor_MAXVAL = readUID_LENGTH;
+
+  for(COUNTER_USERS = 0; COUNTER_USERS < USERS_NUM; COUNTER_USERS++){
+    if(usersUID[COUNTER_USERS][7] == readUID_LENGTH){
+      for(COUNTER_UID = 0; COUNTER_UID < readUID_LENGTH; COUNTER_UID++){
+        if(usersUID[COUNTER_USERS][COUNTER_UID] == readUID[COUNTER_UID]){
+          matchFactor++;
+        }
+      }
+    }
+  }
+
+  if(matchFactor == matchFactor_MAXVAL){
+    return true;
+  }
+  return false;
 }
 
 /****************************************************************************
@@ -425,9 +448,9 @@ void setup() {
 void loop() {
 
   #ifdef PN53_CONNECTED
-
-    matchUser(readCard());
-    
+    if(matchUser(readCard()) == true){
+      signalTrinketBoard();
+    }
   #endif
 
 }
