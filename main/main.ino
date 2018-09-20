@@ -2,7 +2,14 @@
  *  @project:     DUMP ESP8266 NFC Office implementation
  *  @file_name:   main.ino
  *  @brief:
- *  @note:
+ *  @note:        PINOUT SCHEME
+ *                SS    ->  D2
+ *                IRQ   ->  D3
+ *                RST   ->  D4
+ *                SCK   ->  D5
+ *                MISO  ->  D6
+ *                MOSI  ->  D7
+ *                *************  
  *  @author:      Ivan Pavao Lozancic @dump
  *  @date:        07-28-2018
  ****************************************************************************/
@@ -37,6 +44,7 @@
 #define D10 0x01
 
 //Test mode define - comment if not needed
+#define PN532_CONNECTED
 #define TEST_MODE
 
 
@@ -44,15 +52,15 @@
 #define DUMP 
 
 #ifdef DUMP
-#define SSID_1      "dump"
-#define PASSWORD_1  "Dump.12345"
+#define SSID_1      "Jonelo2"
+#define PASSWORD_1  "172030ZN"
 #endif //DUMP
 
 //User UIDs definitions
 #define USERS_NUM 69
 
 //PN532 SPI CONFIGURATION
-#ifdef PN53_CONNECTED
+#ifdef PN532_CONNECTED
 PN532_SPI pn532spi(SPI, D2);
 PN532 nfc(pn532spi);
 #endif
@@ -60,7 +68,6 @@ PN532 nfc(pn532spi);
 
 //ESP8266 CONFIGURATION
 ESP8266WebServer server ( 80 );
-WiFiClient client;
 
 //Configure PS2 port
 //#define PS2_DATA_PIN 4
@@ -68,7 +75,7 @@ WiFiClient client;
 
 
 //USERS
-uint8_t usersUID[69][8] = {
+uint8_t usersUID[72][8] = {
 
 //| #1_UID | #2_UID | #3_UID | #4_UID | #5_UID | #6_UID | #7_UID | #8_UIDLENGTH
 
@@ -151,19 +158,22 @@ uint8_t usersUID[69][8] = {
   {0x1, 0xCD, 0x91, 0x2E, 0, 0, 0, 4},            //  Karlo Koscal          57  Card
   {0xD2, 0x51, 0x23, 0xD9, 0, 0, 0, 4},           //  Karlo Koscal          58  Keychain
 
-  {0, 0, 0, 0, 0, 0, 0, 7},                       //  Ivan Pavao Lozancic   59
+  {0x9D, 0x2D, 0x7E, 0x2D, 0, 0, 0, 4},           //  Ivan Pavao Lozancic   59  Card
+  {0xB4, 0xC9, 0x23, 0xD9, 0, 0, 0, 4},           //  Ivan Pavao Lozancic   60  Keychain
+  {0xFD, 0x8A, 0x24, 0xD9, 0, 0, 0, 4},           //  Ivan Pavao Lozancic   61  Keychain
+  {0x36, 0x29, 0x24, 0xD9, 0, 0, 0, 4},           //  Ivan Pavao Lozancic   62  Keychain
 
-  {0x9D, 0x18, 0xB2, 0x2D, 0, 0, 0, 4},           //  Toma Puljak           60  Card
-  {0x74, 0xC1, 0x23, 0xD9, 0, 0, 0, 4},           //  Toma Puljak           61  Keychain
+  {0x9D, 0x18, 0xB2, 0x2D, 0, 0, 0, 4},           //  Toma Puljak           63  Card
+  {0x74, 0xC1, 0x23, 0xD9, 0, 0, 0, 4},           //  Toma Puljak           64  Keychain
 
-  {0x21, 0x3A, 0x23, 0xD9, 0, 0, 0, 4},           //  Meri Svragulja        62
+  {0x21, 0x3A, 0x23, 0xD9, 0, 0, 0, 4},           //  Meri Svragulja        65
 
-  {0x8C, 0xBD, 0x23, 0xD9, 0, 0, 0, 4},            //  Bruno Vego            63  Keychain
-  {0x4, 0xFD, 0x86, 0x82, 0x31, 0x4D, 0x80, 7},    //  Bruno Vego            64  Sticker 1
-  {0x4, 0x6, 0x87, 0x82, 0x31, 0x4D, 0x81, 7},     //  Bruno Vego            65  Sticker 2
-  {0x4, 0xE, 0x87, 0x82, 0x31, 0x4D, 0x81, 7},     //  Bruno Vego            66  Sticker 3
-  {0x4, 0x16, 0x87, 0x82, 0x31, 0x4D, 0x81, 7},    //  Bruno Vego            67  Sticker 4
-  {0x4, 0xF0, 0x86, 0x82, 0x31, 0x4D, 0x80, 7},    //  Bruno Vego            68  Sticker 5
+  {0x8C, 0xBD, 0x23, 0xD9, 0, 0, 0, 4},            //  Bruno Vego           66  Keychain
+  {0x4, 0xFD, 0x86, 0x82, 0x31, 0x4D, 0x80, 7},    //  Bruno Vego           67  Sticker 1
+  {0x4, 0x6, 0x87, 0x82, 0x31, 0x4D, 0x81, 7},     //  Bruno Vego           68  Sticker 2
+  {0x4, 0xE, 0x87, 0x82, 0x31, 0x4D, 0x81, 7},     //  Bruno Vego           69  Sticker 3
+  {0x4, 0x16, 0x87, 0x82, 0x31, 0x4D, 0x81, 7},    //  Bruno Vego           70  Sticker 4
+  {0x4, 0xF0, 0x86, 0x82, 0x31, 0x4D, 0x80, 7}     //  Bruno Vego           71  Sticker 5
   
 };
 /****************************************************************************
@@ -265,7 +275,7 @@ void WifiConnect(char ssid[], char pass[]){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
-#ifdef PN53_CONNECTED
+#ifdef PN532_CONNECTED
 void PN532_connect(){
   
   nfc.begin();
@@ -302,7 +312,7 @@ void PN532_connect(){
   Serial.println("\n-----------\n");
   #endif //TEST_MODE
 }
-#endif //PN53_CONNECTED
+#endif //PN532_CONNECTED
 /****************************************************************************
  *  @name:        readCard
  *  *************************************************************************
@@ -316,13 +326,13 @@ void PN532_connect(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
-#ifdef PN53_CONNECTED
+#ifdef PN532_CONNECTED
 uint8_t * readCard(){
 
   boolean success;
 
   uint8_t uidLength;   // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-  uint8_t uid[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
+  uint8_t uid[8] = { 0, 0, 0, 0, 0, 0, 0, 0};  // Buffer to store the returned UID
 
   // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
   // 'uid' will be populated with the UID, and uidLength will indicate
@@ -341,8 +351,7 @@ uint8_t * readCard(){
     uid[7] = uidLength;
     Serial.println(" bytes");
     Serial.print("UID Value: ");
-    for (uint8_t i=0; i < uidLength; i++)
-    {
+    for (uint8_t i=0; i < uidLength; i++){
       Serial.print(" 0x");
       Serial.print(uid[i], HEX);
     }
@@ -350,12 +359,11 @@ uint8_t * readCard(){
     Serial.println("");
     Serial.println("");
     #endif //TEST_MODE
-    return uid;
   }
     // wait until the card is taken away
-   return 0;
+   return uid;
 }
-#endif //PN53_CONNECTED
+#endif //PN532_CONNECTED
 
 /****************************************************************************
  *  @name:        matchUser
@@ -369,30 +377,61 @@ uint8_t * readCard(){
  *                [false] If card is not match
  *  *************************************************************************
  *  @author:      Ivan Pavao Lozancic
- *  @date:        30-07-2018
+ *  @date:        20-09-2018
  ***************************************************************************/
-bool matchUser(uint8_t readUID []){
+bool matchUser(){
   
+  uint8_t *readUID;
+
+  readUID = readCard();
+  
+  if(readUID[0] != 0){
+
   uint8_t COUNTER_USERS;
   uint8_t COUNTER_UID;
   uint8_t readUID_LENGTH = readUID[7];
-  uint8_t matchFactor = 0;
+  uint8_t matchFactor;
   uint8_t matchFactor_MAXVAL = readUID_LENGTH;
+
+  Serial.println("");
+  Serial.println("LENGTH: ");
+  Serial.print(readUID_LENGTH);
+  Serial.println("");
 
   for(COUNTER_USERS = 0; COUNTER_USERS < USERS_NUM; COUNTER_USERS++){
     if(usersUID[COUNTER_USERS][7] == readUID_LENGTH){
+
+      matchFactor = 0; //Set matchFactor to zero for new user for check
+
       for(COUNTER_UID = 0; COUNTER_UID < readUID_LENGTH; COUNTER_UID++){
         if(usersUID[COUNTER_USERS][COUNTER_UID] == readUID[COUNTER_UID]){
-          matchFactor++;
-        }
-      }
-    }
-  }
+          
+          Serial.println("");
+          Serial.print("USER: ");
+          Serial.println(usersUID[COUNTER_USERS][COUNTER_UID]);
+          Serial.print("READ: ");
+          Serial.println(readUID[COUNTER_UID]);
+          Serial.print("USER ID: ");
+          Serial.println(COUNTER_USERS);
 
-  if(matchFactor == matchFactor_MAXVAL){
-    return true;
-  }
-  return false;
+          matchFactor++;  //Byte is match!
+
+        }//if(usersUID - byte pair check)
+      }//for(COUNTER_UID)
+
+      if(matchFactor == matchFactor_MAXVAL){
+        Serial.println("SUCCESS");
+        Serial.println("=====================");
+        Serial.println("");
+        Serial.println("");
+        Serial.println("");
+      return true;
+
+      }//if(matchFactor - check if match)
+    }//if(usersUID - length check)
+  }//for(COUNTER_USERS)
+  }//if(readUID != 0)
+  return false; //NO MATCH!
 }
 
 /****************************************************************************
@@ -409,9 +448,9 @@ bool matchUser(uint8_t readUID []){
  *  @date:        21-08-2018
  ***************************************************************************/
 void signalTrinketBoard(){
-  digitalWrite(D7, HIGH);
-  delay(200);
-  digitalWrite(D7, LOW);
+  digitalWrite(D8, LOW);
+  delay(500);
+  digitalWrite(D8, HIGH);
 }
 
 /****************************************************************************
@@ -419,25 +458,20 @@ void signalTrinketBoard(){
  ***************************************************************************/
 void setup() {
 
-  pinMode(D7, OUTPUT);    //Set signal pin
-  digitalWrite(D7, LOW);  //Important for Trinket Board keyboard
+  pinMode(D8, OUTPUT);      //Set signal pin
+  digitalWrite(D8, HIGH);   //Important for Trinket Board keyboard
 
   #ifdef TEST_MODE
-
-    //Begin serial communication
-    Serial.begin ( 115200 );
-
+  Serial.begin ( 115200 );  //Begin serial communication
   #endif
 
   //Wifi
   WifiConnect(SSID_1, PASSWORD_1);        //Connect to WIFI
-  startESPServer();                       //Start server
+  startESPServer();                       //Start server on localhost
 
   //Connect to PN532 board
-  #ifdef PN53_CONNECTED
-
-    PN532_connect();
-
+  #ifdef PN532_CONNECTED
+  PN532_connect();
   #endif          
   
 }
@@ -447,16 +481,18 @@ void setup() {
  ***************************************************************************/
 void loop() {
 
-  #ifdef PN53_CONNECTED
+  /*#ifdef PN532_CONNECTED
     if(matchUser(readCard()) == true){
       signalTrinketBoard();
     }
-  #endif
+  #endif*/
+
+  if(matchUser() == true){
+    signalTrinketBoard();
+  }
 
 }
 
 /****************************************************************************
  *                            End of the file
  ***************************************************************************/
-
-
