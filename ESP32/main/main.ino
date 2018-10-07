@@ -3,21 +3,26 @@
  *  @file_name:   main.ino
  *  @brief:
  *  @note:        PINOUT SCHEME
- *                SS    ->  D2
- *                IRQ   ->  D3
- *                RST   ->  D4
- *                SCK   ->  D5
- *                MISO  ->  D6
- *                MOSI  ->  D7
- *                *************  
+ *                SS    ->  GPIO4
+ *                IRQ   ->  none
+ *                RST   ->  none
+ *                SCK   ->  GPIO18
+ *                MISO  ->  GPIO19
+ *                MOSI  ->  GPIO23
+ *                ************* 
+ *           
  *  @author:      Ivan Pavao Lozancic @dump
  *  @date:        07-28-2018
  ****************************************************************************/
- 
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
+
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
 #include <EEPROM.h>
 #include <FS.h>
+#include "SPIFFS.h"
+#include <WiFiClient.h>
+#include <WebServer.h>
 
 #include <SPI.h>
 #include <PN532_SPI.h>
@@ -31,7 +36,7 @@
  *                            Public definitions
  ***************************************************************************/
 //GPIO PINS 
-#define D0  0x10
+/*#define D0  0x10
 #define D1  0x05
 #define D2  0x04
 #define D3  0x00
@@ -41,33 +46,37 @@
 #define D7  0x0D
 #define D8  0x0F
 #define D9  0x03
-#define D10 0x01
+#define D10 0x01*/
 
 //Test mode define - comment if not needed
 #define PN532_CONNECTED
 #define TEST_MODE
-
+#define TRINKET
 
 //Choose Wi-Fi
-#define DUMP 
+#define HOME 
 
 #ifdef DUMP
+#define SSID_1      "dump"
+#define PASSWORD_1  "Dump.12345"
+#endif //DUMP
+
+#ifdef HOME
 #define SSID_1      "Jonelo2"
 #define PASSWORD_1  "172030ZN"
-#endif //DUMP
+#endif //HOME
 
 //User UIDs definitions
 #define USERS_NUM 69
 
 //PN532 SPI CONFIGURATION
 #ifdef PN532_CONNECTED
-PN532_SPI pn532spi(SPI, D2);
+PN532_SPI pn532spi(SPI, 4);
 PN532 nfc(pn532spi);
 #endif
 
-
-//ESP8266 CONFIGURATION
-ESP8266WebServer server ( 80 );
+//ESP32 WEB SERVER CONFIGURATION
+WebServer server(80);
 
 //Configure PS2 port
 //#define PS2_DATA_PIN 4
@@ -239,19 +248,15 @@ void startESPServer(){
  ***************************************************************************/
 void WifiConnect(char ssid[], char pass[]){
 
-  uint8_t connectTimeOverflow = 0;
+  Serial.println("Booting");
 
-  WiFi.begin ( ssid, pass ); //Connect to wifi
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID_1, PASSWORD_1);
 
-  //Check if device is connected
-  while ( WiFi.status() != WL_CONNECTED  && connectTimeOverflow < 50) {
-    delay ( 500 );
-
-    #ifdef TEST_MODE
-    Serial.print ( "." );
-    #endif
-
-    connectTimeOverflow++;
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("Connection Failed! Rebooting...");
+    delay(5000);
+    ESP.restart();
   }
 
   #ifdef TEST_MODE
@@ -434,7 +439,8 @@ bool matchUser(){
   }//if(readUID != 0)
   return false; //NO MATCH!
 }
-#endif //
+#endif//PN532_CONNECTED
+
 /****************************************************************************
  *  @name:        signalTrinketBoard
  *  *************************************************************************
@@ -448,19 +454,22 @@ bool matchUser(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        21-08-2018
  ***************************************************************************/
-void signalTrinketBoard(){
-  digitalWrite(D8, LOW);
+#ifdef TRINKET
+/*void signalTrinketBoard(){
+  digitalWrite(17, LOW);
   delay(500);
-  digitalWrite(D8, HIGH);
-}
-
+  digitalWrite(17, HIGH);
+}*/
+#endif//TRINKET
 /****************************************************************************
  *                            Setup function
  ***************************************************************************/
 void setup() {
 
-  pinMode(D8, OUTPUT);      //Set signal pin
-  digitalWrite(D8, HIGH);   //Important for Trinket Board keyboard
+  //pinMode(17, OUTPUT);      //Set signal pin
+  //digitalWrite(17, HIGH);   //Important for Trinket Board keyboard
+
+  //SPI.begin();  
 
   #ifdef TEST_MODE
   Serial.begin ( 115200 );  //Begin serial communication
@@ -468,12 +477,12 @@ void setup() {
 
   //Wifi
   WifiConnect(SSID_1, PASSWORD_1);        //Connect to WIFI
-  startESPServer();                       //Start server on localhost
 
   //Connect to PN532 board
   #ifdef PN532_CONNECTED
   PN532_connect();
-  #endif          
+  #endif    
+
   
 }
 
@@ -488,9 +497,16 @@ void loop() {
     }
   #endif*/
 
+  //server.handleClient();
+
+  /*#ifdef PN532_CONNECTED
   if(matchUser() == true){
-    signalTrinketBoard();
+    //signalTrinketBoard();
+    Serial.println("SUCCESS!");
   }
+  #endif //PN532_CONNECTED*/
+
+  readCard();
 
 }
 
