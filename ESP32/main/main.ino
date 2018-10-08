@@ -34,54 +34,45 @@
 /****************************************************************************
  *                            Public definitions
  ***************************************************************************/
-//GPIO PINS 
-/*#define D0  0x10
-#define D1  0x05
-#define D2  0x04
-#define D3  0x00
-#define D4  0x02
-#define D5  0x0E
-#define D6  0x0C
-#define D7  0x0D
-#define D8  0x0F
-#define D9  0x03
-#define D10 0x01*/
 
-//Test mode define - comment if not needed
-#define PN532_CONNECTED
-//#define TEST_MODE
-#define TRINKET
+//Program mode defines
+#define PN532_CONNECTED //Enable if PN532 NFC Reader is used
+#define TEST_MODE       //Enable if informations through serial communication is needed
 #define DEBUG
-
-//Choose Wi-Fi
-#define HOME 
-
-#ifdef DUMP
-#define SSID_1      "dump"
-#define PASSWORD_1  "Dump.12345"
-#endif //DUMP
-
-#ifdef HOME
-#define SSID_1      "Jonelo2"
-#define PASSWORD_1  "172030ZN"
-#endif //HOME
-
-//User UIDs definitions
-#define USERS_NUM 69
+#define TRINKET         //Enable if HID keyboard device is needed
+#define SERIAL_START    //Enable if serial communication is needed
+#define WEB_SERVER      //Enable if web server is needed
+#define WIFI_CONNECT    //Enable if Wi-Fi connection is needed
 
 //PN532 SPI CONFIGURATION
 #ifdef PN532_CONNECTED
 PN532_SPI pn532spi(SPI, 4);
 PN532 nfc(pn532spi);
-#endif
+#endif //PN532_CONNECTED
 
 //ESP32 WEB SERVER CONFIGURATION
-WebServer server(80);
+#ifdef WEB_SERVER
+WebServer server (80);
+#endif//WEB_SERVER
 
-//Configure PS2 port
-//#define PS2_DATA_PIN 4
-//PS2Keyboard keyboard;
+//Choose Wi-Fi
+#define DUMP 
 
+#ifdef DUMP
+#define SSID      "dump"
+#define PASSWORD  "Dump.12345"
+#endif //DUMP
+
+#ifdef HOME
+#define SSID      "Jonelo2"
+#define PASSWORD  "172030ZN"
+#endif //HOME
+
+//Signal pin GPIO define 
+#define SIGNAL_PIN 0x11
+
+//User UIDs definitions
+#define USERS_NUM 72
 
 //USERS
 uint8_t usersUID[72][8] = {
@@ -184,10 +175,12 @@ uint8_t usersUID[72][8] = {
   {0x4, 0x16, 0x87, 0x82, 0x31, 0x4D, 0x81, 7},    //  Bruno Vego           70  Sticker 4
   {0x4, 0xF0, 0x86, 0x82, 0x31, 0x4D, 0x80, 7}     //  Bruno Vego           71  Sticker 5
   
+  //TODO @ivan.pavao.lozancic Add Bruno Radan cards
 };
 
 //Read card UID
 uint8_t uid[8] = { 0, 0, 0, 0, 0, 0, 0, 0};
+
 /****************************************************************************
  *                            Public functions
  ***************************************************************************/
@@ -206,17 +199,23 @@ uint8_t uid[8] = { 0, 0, 0, 0, 0, 0, 0, 0};
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
+#ifdef WEB_SERVER
 bool SPIFFS_check(){
   if (!SPIFFS.begin())
   {
+    #ifdef TEST_MODE
     Serial.println("SPIFFS Mount failed");
+    #endif//TESTMODE
     return true;
   } 
   else {
+    #ifdef TEST_MODE
     Serial.println("SPIFFS Mount succesfull");
+    #endif//TESTMODE
     return false;
   }
 }
+#endif//WEB_SERVER
 
 /****************************************************************************
  *  @name:        startESPServer
@@ -231,9 +230,11 @@ bool SPIFFS_check(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
+#ifdef WEB_SERVER
 void startESPServer(){
   server.serveStatic("/", SPIFFS, "/index.html");
 }
+#endif//WEB_SERVER
 
 /****************************************************************************
  *  @name:        WifiConnect
@@ -249,16 +250,26 @@ void startESPServer(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
+#ifdef WIFI_CONNECT
 void WifiConnect(char ssid[], char pass[]){
 
-  Serial.println("Booting");
+  #ifdef TEST_MODE
+  Serial.print("Connecting to: ");
+  Serial.println(ssid);
+  #endif//TESTMODE
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(SSID_1, PASSWORD_1);
+  WiFi.begin(SSID, PASSWORD);
 
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+
+    #ifdef TEST_MODE
     Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
+    #endif//TEST_MODE
+
+    //Wait 2 seconds before restarting the device
+    delay(2000);
+
     ESP.restart();
   }
 
@@ -269,6 +280,7 @@ void WifiConnect(char ssid[], char pass[]){
   #endif //TEST_MODE
 
 }
+#endif//WifiConnect
 
 /****************************************************************************
  *  @name:        PN532_connect
@@ -286,8 +298,10 @@ void WifiConnect(char ssid[], char pass[]){
 #ifdef PN532_CONNECTED
 void PN532_connect(){
   
+  //Start configured SPI communication with PN53x board
   nfc.begin();
 
+  //Get PN53x board version
   uint32_t versiondata = nfc.getFirmwareVersion();
   
   if (! versiondata) {
@@ -307,12 +321,9 @@ void PN532_connect(){
   #endif //TEST_MODE
 
   // Set the max number of retry attempts to read from a card
-  // This prevents us from waiting forever for a card, which is
-  // the default behaviour of the PN532.
-  //nfc.setPassiveActivationRetries(0xFF);
   nfc.setPassiveActivationRetries(10);
 
-  // configure board to read RFID tags
+  // Configure board to read RFID tags
   nfc.SAMConfig();
 
   #ifdef TEST_MODE
@@ -321,6 +332,7 @@ void PN532_connect(){
   #endif //TEST_MODE
 }
 #endif //PN532_CONNECTED
+
 /****************************************************************************
  *  @name:        readCard
  *  *************************************************************************
@@ -337,18 +349,20 @@ void PN532_connect(){
 #ifdef PN532_CONNECTED
 bool readCard(){
 
+  //Return value of NFC read function
   bool success;
+  
+  // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+  uint8_t uidLength;
 
-  uint8_t uidLength;   // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-
-  // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
-  // 'uid' will be populated with the UID, and uidLength will indicate
-  // if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
+  // Wait for an ISO14443A type cards
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, &uid[0], &uidLength);
 
   if (success) {
 
+    //Store read UID length to global variable
     uid[7] = uidLength;
+
     #ifdef TEST_MODE
     Serial.println("");
     Serial.println("");
@@ -368,7 +382,8 @@ bool readCard(){
     #endif //TEST_MODE
     return true;
   }
-    // wait until the card is taken away
+
+  //PN532 didn't find card
    return false;
 }
 #endif //PN532_CONNECTED
@@ -389,8 +404,6 @@ bool readCard(){
  ***************************************************************************/
 #ifdef PN532_CONNECTED
 bool matchUser(uint8_t readUID[]){
-  
-  if(readUID[0] != 0){
 
   uint8_t COUNTER_USERS;
   uint8_t COUNTER_UID;
@@ -423,11 +436,13 @@ bool matchUser(uint8_t readUID[]){
           Serial.println(COUNTER_USERS);
           #endif //TEST_MODE
 
-          matchFactor++;  //Byte is match!
+          //Byte is match!
+          matchFactor++;
 
         }//if(usersUID - byte pair check)
       }//for(COUNTER_UID)
 
+      //If the read card is match with user card
       if(matchFactor == matchFactor_MAXVAL){
         
         #ifdef TEST_MODE
@@ -443,8 +458,9 @@ bool matchUser(uint8_t readUID[]){
       }//if(matchFactor - check if match)
     }//if(usersUID - length check)
   }//for(COUNTER_USERS)
-  }//if(readUID != 0)
-  return false; //NO MATCH!
+
+  //NO MATCH!
+  return false;
 }
 #endif//PN532_CONNECTED
 
@@ -462,28 +478,36 @@ bool matchUser(uint8_t readUID[]){
  *  @date:        21-08-2018
  ***************************************************************************/
 #ifdef TRINKET
-/*void signalTrinketBoard(){
-  digitalWrite(17, LOW);
+void signalTrinketBoard(){
+
+  //Send digital signal to trinket board
+  digitalWrite(SIGNAL_PIN, LOW);
   delay(500);
-  digitalWrite(17, HIGH);
-}*/
+
+  //Stop the signal
+  digitalWrite(SIGNAL_PIN, HIGH);
+
+  //Wait for PC to be unlocked
+  delay(3000);
+}
 #endif//TRINKET
+
 /****************************************************************************
  *                            Setup function
  ***************************************************************************/
 void setup() {
 
-  //pinMode(17, OUTPUT);      //Set signal pin
-  //digitalWrite(17, HIGH);   //Important for Trinket Board keyboard
-
-  //SPI.begin();  
-
   #ifdef DEBUG
   Serial.begin ( 115200 );  //Begin serial communication
   #endif //DEBUG
 
+  pinMode(SIGNAL_PIN, OUTPUT);      //Set signal pin
+  digitalWrite(SIGNAL_PIN, HIGH);   //Important for Trinket Board keyboard 
+
   //Wifi
-  WifiConnect(SSID_1, PASSWORD_1);        //Connect to WIFI
+  #ifdef WIFI_CONNECT
+  WifiConnect(SSID, PASSWORD);        //Connect to WIFI
+  #endif//WIFI_CONNECT
 
   //Connect to PN532 board
   #ifdef PN532_CONNECTED
@@ -500,7 +524,7 @@ void loop() {
 
   if(readCard() == true){
     if(matchUser(uid) == true){
-      Serial.println("Success!");
+      signalTrinketBoard();
     }
   }
 
