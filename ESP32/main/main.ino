@@ -1,5 +1,5 @@
 /****************************************************************************
- *  @project:     DUMP ESP8266 NFC Office implementation
+ *  @project:     DUMP ESP32 NFC Office implementation
  *  @file_name:   main.ino
  *  @brief:
  *  @note:        PINOUT SCHEME
@@ -14,7 +14,6 @@
  *  @author:      Ivan Pavao Lozancic @dump
  *  @date:        07-28-2018
  ****************************************************************************/
-
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
@@ -50,8 +49,9 @@
 
 //Test mode define - comment if not needed
 #define PN532_CONNECTED
-#define TEST_MODE
+//#define TEST_MODE
 #define TRINKET
+#define DEBUG
 
 //Choose Wi-Fi
 #define HOME 
@@ -185,6 +185,9 @@ uint8_t usersUID[72][8] = {
   {0x4, 0xF0, 0x86, 0x82, 0x31, 0x4D, 0x80, 7}     //  Bruno Vego           71  Sticker 5
   
 };
+
+//Read card UID
+uint8_t uid[8] = { 0, 0, 0, 0, 0, 0, 0, 0};
 /****************************************************************************
  *                            Public functions
  ***************************************************************************/
@@ -218,7 +221,7 @@ bool SPIFFS_check(){
 /****************************************************************************
  *  @name:        startESPServer
  *  *************************************************************************
- *  @brief:       Load index.html from ESP8266 and host it
+ *  @brief:       Load index.html from ESP32 flash memory and host it
  *  @note:
  *  *************************************************************************
  *  @param[in]:
@@ -235,7 +238,7 @@ void startESPServer(){
 /****************************************************************************
  *  @name:        WifiConnect
  *  *************************************************************************
- *  @brief:       Connect ESP8266 to WiFi network
+ *  @brief:       Connect ESP32 to WiFi network
  *  @note:
  *  *************************************************************************
  *  @param[in]:
@@ -270,7 +273,7 @@ void WifiConnect(char ssid[], char pass[]){
 /****************************************************************************
  *  @name:        PN532_connect
  *  *************************************************************************
- *  @brief:       Connect ESP8266 to PN532 board
+ *  @brief:       Connect ESP32 to PN532 board
  *  @note:
  *  *************************************************************************
  *  @param[in]:
@@ -332,12 +335,11 @@ void PN532_connect(){
  *  @date:        30-07-2018
  ***************************************************************************/
 #ifdef PN532_CONNECTED
-uint8_t * readCard(){
+bool readCard(){
 
-  boolean success;
+  bool success;
 
   uint8_t uidLength;   // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-  uint8_t uid[8] = { 0, 0, 0, 0, 0, 0, 0, 0};  // Buffer to store the returned UID
 
   // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
   // 'uid' will be populated with the UID, and uidLength will indicate
@@ -346,6 +348,7 @@ uint8_t * readCard(){
 
   if (success) {
 
+    uid[7] = uidLength;
     #ifdef TEST_MODE
     Serial.println("");
     Serial.println("");
@@ -353,7 +356,6 @@ uint8_t * readCard(){
     Serial.println("Found a card!");
     Serial.print("UID Length: ");
     Serial.print(uidLength, DEC);
-    uid[7] = uidLength;
     Serial.println(" bytes");
     Serial.print("UID Value: ");
     for (uint8_t i=0; i < uidLength; i++){
@@ -364,9 +366,10 @@ uint8_t * readCard(){
     Serial.println("");
     Serial.println("");
     #endif //TEST_MODE
+    return true;
   }
     // wait until the card is taken away
-   return uid;
+   return false;
 }
 #endif //PN532_CONNECTED
 
@@ -385,11 +388,7 @@ uint8_t * readCard(){
  *  @date:        20-09-2018
  ***************************************************************************/
 #ifdef PN532_CONNECTED
-bool matchUser(){
-  
-  uint8_t *readUID;
-
-  readUID = readCard();
+bool matchUser(uint8_t readUID[]){
   
   if(readUID[0] != 0){
 
@@ -399,10 +398,12 @@ bool matchUser(){
   uint8_t matchFactor;
   uint8_t matchFactor_MAXVAL = readUID_LENGTH;
 
+  #ifdef TEST_MODE
   Serial.println("");
   Serial.println("LENGTH: ");
   Serial.print(readUID_LENGTH);
   Serial.println("");
+  #endif //TEST_MODE
 
   for(COUNTER_USERS = 0; COUNTER_USERS < USERS_NUM; COUNTER_USERS++){
     if(usersUID[COUNTER_USERS][7] == readUID_LENGTH){
@@ -412,6 +413,7 @@ bool matchUser(){
       for(COUNTER_UID = 0; COUNTER_UID < readUID_LENGTH; COUNTER_UID++){
         if(usersUID[COUNTER_USERS][COUNTER_UID] == readUID[COUNTER_UID]){
           
+          #ifdef TEST_MODE
           Serial.println("");
           Serial.print("USER: ");
           Serial.println(usersUID[COUNTER_USERS][COUNTER_UID]);
@@ -419,6 +421,7 @@ bool matchUser(){
           Serial.println(readUID[COUNTER_UID]);
           Serial.print("USER ID: ");
           Serial.println(COUNTER_USERS);
+          #endif //TEST_MODE
 
           matchFactor++;  //Byte is match!
 
@@ -426,12 +429,16 @@ bool matchUser(){
       }//for(COUNTER_UID)
 
       if(matchFactor == matchFactor_MAXVAL){
+        
+        #ifdef TEST_MODE
         Serial.println("SUCCESS");
         Serial.println("=====================");
         Serial.println("");
         Serial.println("");
         Serial.println("");
-      return true;
+        #endif //TEST_MODE
+
+        return true;
 
       }//if(matchFactor - check if match)
     }//if(usersUID - length check)
@@ -471,9 +478,9 @@ void setup() {
 
   //SPI.begin();  
 
-  #ifdef TEST_MODE
+  #ifdef DEBUG
   Serial.begin ( 115200 );  //Begin serial communication
-  #endif
+  #endif //DEBUG
 
   //Wifi
   WifiConnect(SSID_1, PASSWORD_1);        //Connect to WIFI
@@ -491,22 +498,11 @@ void setup() {
  ***************************************************************************/
 void loop() {
 
-  /*#ifdef PN532_CONNECTED
-    if(matchUser(readCard()) == true){
-      signalTrinketBoard();
+  if(readCard() == true){
+    if(matchUser(uid) == true){
+      Serial.println("Success!");
     }
-  #endif*/
-
-  //server.handleClient();
-
-  /*#ifdef PN532_CONNECTED
-  if(matchUser() == true){
-    //signalTrinketBoard();
-    Serial.println("SUCCESS!");
   }
-  #endif //PN532_CONNECTED*/
-
-  readCard();
 
 }
 
