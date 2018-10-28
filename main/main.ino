@@ -23,10 +23,6 @@
 #include <PN532_SPI.h>
 #include <PN532.h>
 
-//#include <PS2Keyboard.h>
-
-#include<string.h>
-
 /****************************************************************************
  *                            Public definitions
  ***************************************************************************/
@@ -46,14 +42,21 @@
 //Test mode define - comment if not needed
 #define PN532_CONNECTED
 #define TEST_MODE
+#define TRINKET_CONNECTED
+#define WIFI_ENABLE 
 
+//Baudrate 
+#define BAUDR 115200
+
+//TrinketBoard configuration
+#define TRINKET_PIN D8
 
 //Choose Wi-Fi
 #define DUMP 
 
 #ifdef DUMP
-#define SSID_1      "Jonelo2"
-#define PASSWORD_1  "172030ZN"
+#define SSID      "dump"
+#define PASSWORD  "Dump.12345"
 #endif //DUMP
 
 //User UIDs definitions
@@ -67,7 +70,10 @@ PN532 nfc(pn532spi);
 
 
 //ESP8266 CONFIGURATION
-ESP8266WebServer server ( 80 );
+#define PORT 0x50
+#ifdef WIFI_ENABLE
+ESP8266WebServer server (PORT);
+#endif //WIFI_ENABLE
 
 //Configure PS2 port
 //#define PS2_DATA_PIN 4
@@ -207,7 +213,7 @@ bool SPIFFS_check(){
 }
 
 /****************************************************************************
- *  @name:        startESPServer
+ *  @name:        loadWeb
  *  *************************************************************************
  *  @brief:       Load index.html from ESP8266 and host it
  *  @note:
@@ -219,9 +225,11 @@ bool SPIFFS_check(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        30-07-2018
  ***************************************************************************/
-void startESPServer(){
+#ifdef WIFI_ENABLE
+void loadWeb(){
   server.serveStatic("/", SPIFFS, "/index.html");
 }
+#endif //WIFI_ENABLE 
 
 /****************************************************************************
  *  @name:        WifiConnect
@@ -434,7 +442,28 @@ bool matchUser(){
   }//if(readUID != 0)
   return false; //NO MATCH!
 }
-#endif //
+#endif //PN532_CONNECTED
+
+/****************************************************************************
+ *  @name:        trinketInit
+ *  *************************************************************************
+ *  @brief:       Declare signal pin for trinket board and set it normal-HIGH
+ *  @note:
+ *  *************************************************************************
+ *  @param[in]:
+ *  @param[out]:   
+ *  @return:      nothing
+ *  *************************************************************************
+ *  @author:      Ivan Pavao Lozancic
+ *  @date:        21-08-2018
+ ***************************************************************************/
+#ifdef TRINKET_CONNECTED
+void trinketInit(uint8_t pin){
+  pinMode(pin, OUTPUT);      //Set signal pin
+  digitalWrite(pin, HIGH);   //Important for Trinket Board keyboard
+}
+#endif //TRINKET_CONNECTED
+
 /****************************************************************************
  *  @name:        signalTrinketBoard
  *  *************************************************************************
@@ -448,27 +477,32 @@ bool matchUser(){
  *  @author:      Ivan Pavao Lozancic
  *  @date:        21-08-2018
  ***************************************************************************/
+#ifdef TRINKET_CONNECTED
 void signalTrinketBoard(){
   digitalWrite(D8, LOW);
   delay(500);
   digitalWrite(D8, HIGH);
 }
+#endif //TRINKET_CONNECTED
 
 /****************************************************************************
  *                            Setup function
  ***************************************************************************/
 void setup() {
 
-  pinMode(D8, OUTPUT);      //Set signal pin
-  digitalWrite(D8, HIGH);   //Important for Trinket Board keyboard
+  #ifdef TRINKET_CONNECTED
+  trinketInit(TRINKET_PIN);
+  #endif //TRINKET_CONNECTED
 
   #ifdef TEST_MODE
-  Serial.begin ( 115200 );  //Begin serial communication
+  Serial.begin (BAUDR);  //Begin serial communication
   #endif
 
   //Wifi
-  WifiConnect(SSID_1, PASSWORD_1);        //Connect to WIFI
-  startESPServer();                       //Start server on localhost
+  #ifdef WIFI_ENABLE
+  WifiConnect(SSID, PASSWORD);        //Connect to WIFI
+  loadWeb();                       //Start server on localhost
+  #endif //WIFI_ENABLE
 
   //Connect to PN532 board
   #ifdef PN532_CONNECTED
