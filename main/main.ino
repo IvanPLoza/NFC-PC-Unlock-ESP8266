@@ -49,14 +49,14 @@
 #define BAUDR 115200
 
 //TrinketBoard configuration
-#define TRINKET_PIN D8
+#define TRINKET_PIN 0x0F
 
 //Choose Wi-Fi
 #define DUMP 
 
 #ifdef DUMP
-#define SSID      "dump"
-#define PASSWORD  "Dump.12345"
+#define SSID      "Jonelo2"
+#define PASSWORD  "172030ZN"
 #endif //DUMP
 
 //User UIDs definitions
@@ -473,14 +473,22 @@ void trinketInit(uint8_t pin){
  *  @param[in]:
  *  @param[out]:   
  *  @return:      nothing
- *  *************************************************************************
+ *  ********************IplgamerVoli2-
+ * ****************************************************
  *  @author:      Ivan Pavao Lozancic
  *  @date:        21-08-2018
  ***************************************************************************/
 #ifdef TRINKET_CONNECTED
 void signalTrinketBoard(){
+
   digitalWrite(D8, LOW);
+
   delay(500);
+
+  #ifdef TEST_MODE
+  Serial.println("TRINKET BOARD SIGNALED!");
+  #endif //TEST_MODE
+
   digitalWrite(D8, HIGH);
 }
 #endif //TRINKET_CONNECTED
@@ -515,12 +523,6 @@ void setup() {
  *                            Main function
  ***************************************************************************/
 void loop() {
-
-  /*#ifdef PN532_CONNECTED
-    if(matchUser(readCard()) == true){
-      signalTrinketBoard();
-    }
-  #endif*/
 
   if(matchUser() == true){
     signalTrinketBoard();

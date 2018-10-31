@@ -6,9 +6,12 @@
  *  @author:      Ivan Pavao Lozancic @dump
  *  @date:        19-08-2018
  ****************************************************************************/
- #include <TrinketKeyboard.h>
+#include <TrinketKeyboard.h>
 
- bool PC_LOCKED = true;
+//INPUT PIN
+#define INPUT_PIN 2
+
+bool PC_LOCKED = true; //First state when started
 
 /****************************************************************************
  *                            Public definitions
@@ -17,12 +20,12 @@
 //uint8_t Password[10{}
 
 /****************************************************************************
- *                            Public functions
+ *                           Public functions
  ***************************************************************************/
 /****************************************************************************
  *  @name:        UnlockPC
  *  *************************************************************************
- *  @brief:       Emulates keyboard and unlocks PC
+ *  @brief:       Emulate keyboard and unlocks PC
  *  @note:
  *  *************************************************************************
  *  @param[in]:
@@ -39,9 +42,9 @@
   TrinketKeyboard.pressKey(0, KEYCODE_BACKSPACE);
   TrinketKeyboard.pressKey(0, 0);
 
-  delay(100);
+  delay(500);
 
-  TrinketKeyboard.print("Dump.12345");
+  TrinketKeyboard.print("IplgamerVoli2/"); // Its / instead of - becasue of keyboard language 
   TrinketKeyboard.pressKey(0, 0);
 
   delay(100);
@@ -51,19 +54,14 @@
 
   delay(2000);
 
-  return;
-
  }
 
- /****************************************************************************
+ /***************************************************************************
  *  @name:        LockPC
  *  *************************************************************************
  *  @brief:       Emulates keyboard and locks PC
  *  @note:
- *  *******************************el
- * Dump.12345
- * 
- * ******************************************
+ * **************************************************************************
  *  @param[in]:
  *  @param[out]:   
  *  @return:      nothing
@@ -80,20 +78,18 @@
 
   delay(2000);
 
-  return;
  }
  /****************************************************************************
  *                            Setup function
  ***************************************************************************/
 void setup()
 {
+  
+  //Set input "trigger" pin
+  pinMode(INPUT_PIN, INPUT);
 
-  // start USB stuff
+  //Start USB HID device
   TrinketKeyboard.begin();
-
-  //Signal input pin
-  pinMode(0, INPUT);
-
 }
 
 /****************************************************************************
@@ -101,10 +97,26 @@ void setup()
  ***************************************************************************/
 void loop()
 {
-  if(digitalRead(0) == HIGH && PC_LOCKED == true){
-    UnlockPC();
+  //Refresh so computer won't recognized it as broken device
+  TrinketKeyboard.poll(); 
+
+  if(digitalRead(INPUT_PIN) == 1){ 
+    if(PC_LOCKED == true){
+
+      UnlockPC();
+
+      PC_LOCKED = false;
+    }
+
+    else{
+
+      LockPC();
+
+      PC_LOCKED = true;
+    }
+
+    delay(1000); //Safe wait
   }
-  else if(digitalRead(0) == HIGH && PC_LOCKED == false){
-    LockPC();
-  }
-}
+} 
+
+
