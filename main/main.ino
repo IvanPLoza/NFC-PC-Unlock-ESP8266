@@ -53,11 +53,17 @@
 
 //Choose Wi-Fi
 #define DUMP 
+//#define HOME
 
 #ifdef DUMP
+#define SSID      "dump"
+#define PASSWORD  "Dump.12345" 
+#endif //DUMP
+
+#ifdef HOME
 #define SSID      "Jonelo2"
 #define PASSWORD  "172030ZN"
-#endif //DUMP
+#endif //HOME
 
 //User UIDs definitions
 #define USERS_NUM 69
