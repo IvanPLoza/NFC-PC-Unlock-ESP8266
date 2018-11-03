@@ -13,6 +13,8 @@
 
 bool PC_LOCKED = true; //First state when started
 
+String PASSWORD = "Dump.12345";
+
 /****************************************************************************
  *                            Public definitions
  ***************************************************************************/
@@ -44,7 +46,7 @@ bool PC_LOCKED = true; //First state when started
 
   delay(500);
 
-  TrinketKeyboard.print("IplgamerVoli2/"); // Its / instead of - becasue of keyboard language 
+  TrinketKeyboard.print(PASSWORD); // Its / instead of - becasue of keyboard language 
   TrinketKeyboard.pressKey(0, 0);
 
   delay(100);
@@ -118,5 +120,3 @@ void loop()
     delay(1000); //Safe wait
   }
 } 
-
-

@@ -44,6 +44,7 @@
 #define TEST_MODE
 #define TRINKET_CONNECTED
 #define WIFI_ENABLE 
+//#define READ_ONLY
 
 //Baudrate 
 #define BAUDR 115200
@@ -359,16 +360,21 @@ uint8_t * readCard(){
     Serial.println("");
     Serial.println("");
     Serial.println("");
+
     Serial.println("Found a card!");
-    Serial.print("UID Length: ");
+    Serial.print("UID Length: "); 
     Serial.print(uidLength, DEC);
+
     uid[7] = uidLength;
+
     Serial.println(" bytes");
     Serial.print("UID Value: ");
+
     for (uint8_t i=0; i < uidLength; i++){
       Serial.print(" 0x");
       Serial.print(uid[i], HEX);
     }
+
     Serial.println("");
     Serial.println("");
     Serial.println("");
@@ -402,50 +408,32 @@ bool matchUser(){
   
   if(readUID[0] != 0){
 
-  uint8_t COUNTER_USERS;
-  uint8_t COUNTER_UID;
-  uint8_t readUID_LENGTH = readUID[7];
-  uint8_t matchFactor;
-  uint8_t matchFactor_MAXVAL = readUID_LENGTH;
+    uint8_t COUNTER_USERS;
+    uint8_t COUNTER_UID;
+    uint8_t readUID_LENGTH = readUID[7];
+    uint8_t matchFactor;
+    uint8_t matchFactor_MAXVAL = readUID_LENGTH;
 
-  Serial.println("");
-  Serial.println("LENGTH: ");
-  Serial.print(readUID_LENGTH);
-  Serial.println("");
+    for(COUNTER_USERS = 0; COUNTER_USERS < USERS_NUM; COUNTER_USERS++){
+      if(usersUID[COUNTER_USERS][7] == readUID_LENGTH){
 
-  for(COUNTER_USERS = 0; COUNTER_USERS < USERS_NUM; COUNTER_USERS++){
-    if(usersUID[COUNTER_USERS][7] == readUID_LENGTH){
+        matchFactor = 0; //Set matchFactor to zero for new user for check
 
-      matchFactor = 0; //Set matchFactor to zero for new user for check
+        for(COUNTER_UID = 0; COUNTER_UID < readUID_LENGTH; COUNTER_UID++){
+          if(usersUID[COUNTER_USERS][COUNTER_UID] == readUID[COUNTER_UID]){
 
-      for(COUNTER_UID = 0; COUNTER_UID < readUID_LENGTH; COUNTER_UID++){
-        if(usersUID[COUNTER_USERS][COUNTER_UID] == readUID[COUNTER_UID]){
-          
-          Serial.println("");
-          Serial.print("USER: ");
-          Serial.println(usersUID[COUNTER_USERS][COUNTER_UID]);
-          Serial.print("READ: ");
-          Serial.println(readUID[COUNTER_UID]);
-          Serial.print("USER ID: ");
-          Serial.println(COUNTER_USERS);
+            matchFactor++;  //Byte is match!
+          }
+        }
 
-          matchFactor++;  //Byte is match!
+        if(matchFactor == matchFactor_MAXVAL){
 
-        }//if(usersUID - byte pair check)
-      }//for(COUNTER_UID)
-
-      if(matchFactor == matchFactor_MAXVAL){
-        Serial.println("SUCCESS");
-        Serial.println("=====================");
-        Serial.println("");
-        Serial.println("");
-        Serial.println("");
-      return true;
-
-      }//if(matchFactor - check if match)
-    }//if(usersUID - length check)
-  }//for(COUNTER_USERS)
-  }//if(readUID != 0)
+          return true; //MATCH!
+        }
+      }
+    }
+  }
+  
   return false; //NO MATCH!
 }
 #endif //PN532_CONNECTED
@@ -465,8 +453,10 @@ bool matchUser(){
  ***************************************************************************/
 #ifdef TRINKET_CONNECTED
 void trinketInit(uint8_t pin){
+
   pinMode(pin, OUTPUT);      //Set signal pin
-  digitalWrite(pin, HIGH);   //Important for Trinket Board keyboard
+
+  digitalWrite(pin, LOW);   //Important for Trinket Board keyboard
 }
 #endif //TRINKET_CONNECTED
 
@@ -487,7 +477,7 @@ void trinketInit(uint8_t pin){
 #ifdef TRINKET_CONNECTED
 void signalTrinketBoard(){
 
-  digitalWrite(D8, LOW);
+  digitalWrite(D8, HIGH);
 
   delay(500);
 
@@ -495,7 +485,7 @@ void signalTrinketBoard(){
   Serial.println("TRINKET BOARD SIGNALED!");
   #endif //TEST_MODE
 
-  digitalWrite(D8, HIGH);
+  digitalWrite(D8, LOW);
 }
 #endif //TRINKET_CONNECTED
 
@@ -530,9 +520,17 @@ void setup() {
  ***************************************************************************/
 void loop() {
 
-  if(matchUser() == true){
-    signalTrinketBoard();
-  }
+  #ifdef PN532_connect
+
+    #ifndef READ_ONLY
+      if(matchUser() == true){
+        signalTrinketBoard();
+      } 
+
+    #else
+      readCard();
+    #endif  //READ_ONLY
+  #endif  //PN532_CONNECTED
 
 }
 

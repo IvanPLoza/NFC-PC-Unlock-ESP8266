@@ -59,8 +59,8 @@ WebServer server (80);
 #define DUMP 
 
 #ifdef DUMP
-#define SSID      "dump"
-#define PASSWORD  "Dump.12345"
+#define SSID      "Redmi"
+#define PASSWORD  "11221122"
 #endif //DUMP
 
 #ifdef HOME
@@ -481,14 +481,12 @@ bool matchUser(uint8_t readUID[]){
 void signalTrinketBoard(){
 
   //Send digital signal to trinket board
-  digitalWrite(SIGNAL_PIN, LOW);
+  digitalWrite(SIGNAL_PIN, HIGH);
   delay(500);
 
   //Stop the signal
-  digitalWrite(SIGNAL_PIN, HIGH);
+  digitalWrite(SIGNAL_PIN, LOW);
 
-  //Wait for PC to be unlocked
-  delay(3000);
 }
 #endif//TRINKET
 
@@ -502,7 +500,7 @@ void setup() {
   #endif //DEBUG
 
   pinMode(SIGNAL_PIN, OUTPUT);      //Set signal pin
-  digitalWrite(SIGNAL_PIN, HIGH);   //Important for Trinket Board keyboard 
+  digitalWrite(SIGNAL_PIN, LOW);   //Important for Trinket Board keyboard 
 
   //Wifi
   #ifdef WIFI_CONNECT
