@@ -59,8 +59,8 @@ WebServer server (80);
 #define DUMP 
 
 #ifdef DUMP
-#define SSID      "Redmi"
-#define PASSWORD  "11221122"
+#define SSID      "dump"
+#define PASSWORD  "Dump.12345"
 #endif //DUMP
 
 #ifdef HOME
